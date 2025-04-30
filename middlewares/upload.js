@@ -1,4 +1,3 @@
-// middleware/upload.js
 import multer from "multer";
 
 // Store file temporarily in memory

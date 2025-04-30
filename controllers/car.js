@@ -30,38 +30,46 @@ export const getCarsByUser = async (req, res) => {
 };
 
 // @desc    Add a new car
-// @route   POST /api/cars
 export const addCar = async (req, res) => {
+  console.log("Request body: add car hit", req.body);
   try {
-    const uploader = async (buffer) => {
-      return await cloudinary.uploader.upload_stream({ folder: "cars" }, (error, result) => {
-        if (error) throw error;
-        return result;
-      }).end(buffer);
-    };
+    // Extract specific fields from req.body
+    const {
+      title,
+      description,
+      location,
+      brand,
+      year,
+      bodyType,
+      fuel,
+      mileage,
+      model,
+      transmission,
+      color,
+      price,
+      user,
+      images,
+    } = req.body;
 
-    const files = req.files;
-
-    const uploadPromises = files.map((file) =>
-      new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { folder: "cars" },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result.secure_url);
-          }
-        );
-        uploadStream.end(file.buffer);
-      })
-    );
-
-    const imageUrls = await Promise.all(uploadPromises);
-
+    // Create a new car object with the extracted fields
     const carData = {
-      ...req.body,
-      images: imageUrls, // <-- Save the uploaded image URLs
+      title,
+      description,
+      location,
+      brand,
+      year,
+      bodyType,
+      fuel,
+      mileage,
+      model,
+      transmission,
+      color,
+      price,
+      user, // User ID
+      images, // Array of image URLs
     };
 
+    // Save the car data to the database
     const car = new Car(carData);
     await car.save();
 
@@ -71,7 +79,6 @@ export const addCar = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 // @desc    Recommend cars based on user's search history
 // @route   GET /api/cars/recommendations/:userId
 export const recommendCars = async (req, res) => {
@@ -175,40 +182,55 @@ export const searchText = async (req, res) => {
 };
 
 export const filterByAttributes = async (req, res) => {
-    try {
-      const filters = {};
-      const {
-        title,
-        brand,
-        model,
-        year,
-        bodyType,
-        fuel,
-        mileage,
-        transmission,
-        color,
-        price,
-        location
-      } = req.body; // GET DATA FROM BODY
-  
-      // Build dynamic filters
-      if (title) filters.title = { $regex: title, $options: "i" };
-      if (brand) filters.brand = { $regex: brand, $options: "i" };
-      if (model) filters.model = { $regex: model, $options: "i" };
-      if (year) filters.year = year;
-      if (bodyType) filters.bodyType = { $regex: bodyType, $options: "i" };
-      if (fuel) filters.fuel = { $regex: fuel, $options: "i" };
-      if (mileage) filters.mileage = mileage;
-      if (transmission) filters.transmission = { $regex: transmission, $options: "i" };
-      if (color) filters.color = { $regex: color, $options: "i" };
-      if (price) filters.price = price;
-      if (location) filters["location.address"] = { $regex: location, $options: "i" };
-  
-      const cars = await Car.find(filters).populate("user", "username email");
-  
-      res.status(200).json(cars);
-    } catch (error) {
-      console.error("Error filtering cars:", error);
-      res.status(500).json({ message: "Server error" });
+  console.log("Filter ", req.body);
+  try {
+    const filters = {};
+    const {
+      title,
+      brand,
+      model,
+      year,
+      bodyType,
+      fuel,
+      mileage,
+      transmission,
+      color,
+      location,
+    } = req.body; // GET DATA FROM BODY
+
+    // Build dynamic filters
+    if (title && typeof title === "string")
+      filters.title = { $regex: title, $options: "i" };
+    if (brand && typeof brand === "string")
+      filters.brand = { $regex: brand, $options: "i" };
+    if (model && typeof model === "string")
+      filters.model = { $regex: model, $options: "i" };
+    if (year) filters.year = year;
+    if (bodyType && typeof bodyType === "string")
+      filters.bodyType = { $regex: bodyType, $options: "i" };
+    if (fuel && typeof fuel === "string")
+      filters.fuel = { $regex: fuel, $options: "i" };
+    if (mileage) filters.mileage = mileage;
+    if (transmission && typeof transmission === "string")
+      filters.transmission = { $regex: transmission, $options: "i" };
+    if (color && typeof color === "string")
+      filters.color = { $regex: color, $options: "i" };
+    if (req.body.priceRange) {
+      filters.$expr = {
+        $and: [
+          { $gte: [{ $toDouble: "$price" }, req.body.priceRange.min] },
+          { $lte: [{ $toDouble: "$price" }, req.body.priceRange.max] },
+        ],
+      };
     }
-  };
+    if (location && typeof location === "string")
+      filters["location.address"] = { $regex: location, $options: "i" };
+
+    const cars = await Car.find(filters).populate("user", "username email");
+    console.log("cars ", cars);
+    res.status(200).json(cars);
+  } catch (error) {
+    console.error("Error filtering cars:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

@@ -15,11 +15,12 @@ const router = express.Router();
 
 // Public Routes
 router.get("/", getAllCars);
+router.post("/add", addCar);
 router.get("/user/:id", getCarsByUser);
 router.get("/recommendations/:userId", recommendCars);
 
 // Private Routes (should be protected later)
-router.post("/add",upload.array("images", 5), addCar);
+
 router.put("/:id", updateCar);
 router.delete("/:id", deleteCar);
 router.get("/search/:query", searchText);
