@@ -1,6 +1,5 @@
 import { Router } from "express";
-import Chat from "../models/Chat.js";
-import chatroute from "./chat.js";
+import messageroute from "./message.js";
 import authroute from "./auth.js";
 import carrouter from "./car.js";
 const router = Router();
@@ -11,6 +10,6 @@ router.use("/conversations", async (req, res) => {
   res.json(chats);
 });
 router.use("/car", carrouter);
-router.use("/chats", chatroute);
+router.use("/chat", messageroute);
 
 export default router;
