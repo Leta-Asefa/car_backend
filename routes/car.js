@@ -7,7 +7,12 @@ import {
   updateCar,
   deleteCar,
   searchText,
-  filterByAttributes
+  filterByAttributes,
+  getCarSummary,
+  updateCarApproval,
+  getUnapprovedCars,
+  getLatestCars,
+  getCarSummaryByMonths
 } from "../controllers/car.js";
 import upload from "../middlewares/upload.js";
 
@@ -25,5 +30,10 @@ router.put("/:id", updateCar);
 router.delete("/:id", deleteCar);
 router.get("/search/:query", searchText);
 router.post("/filter",filterByAttributes)
+router.get("/summary", getCarSummary);
+router.get("/lastestcars", getLatestCars);
+router.get("/unapproved", getUnapprovedCars);
+router.post("/approve", updateCarApproval);
+router.get("/summary/:months", getCarSummaryByMonths);
 
 export default router;

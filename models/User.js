@@ -5,6 +5,7 @@ const userSchema = new Schema(
   {
     username: { type: String, required: true },
     email: { type: String, required: true, unique: true },
+    phoneNumber: { type: String, required: true, unique: true },
     role: { type: String, required: true },
     password: { type: String, required: true },
     searchHistory: [
@@ -13,9 +14,13 @@ const userSchema = new Schema(
         model: String,
         location: String,
         year: String,
+        ownerId:String,
+        carId:{ type: Schema.Types.ObjectId, ref: "Car"},
         date: { type: Date, default: Date.now },
       },
     ],
+    status: { type: String, enum: ['approved', 'declined',"unapproved"], default: 'unapproved' },
+
   },
   { timestamps: true } // <-- createdAt and updatedAt automatically handled
 );

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Car from "../models/Car.js";
 import User from "../models/User.js";
 
@@ -79,37 +80,71 @@ export const addCar = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// @desc    Recommend cars based on user's search history
-// @route   GET /api/cars/recommendations/:userId
+
 export const recommendCars = async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId);
+    const excludeCarId = req.query.exclude;
 
+    const user = await User.findById(userId);
     if (!user || user.searchHistory.length === 0) {
-      return res.status(200).json([]);
+      // Fallback: Recent random cars
+      const fallback = await Car.aggregate([
+        { $match: { user: { $ne: new mongoose.Types.ObjectId(userId) } } },
+        { $sample: { size: 6 } },
+      ]);
+
+      const populated = await Car.find({ _id: { $in: fallback.map(car => car._id) } })
+        .populate("user", "_id username email");
+
+      return res.status(200).json(populated);
     }
 
     const recentSearches = user.searchHistory.slice(-3);
-    const queries = recentSearches.map((search) => {
+
+    // Combine recent searches into OR queries
+    const orQueries = recentSearches.map((s) => {
       const q = {};
-      if (search.brand) q.brand = search.brand;
-      if (search.model) q.model = search.model;
-      if (search.year) q.year = search.year;
-      if (search.location) q["location.address"] = search.location;
+      if (s.brand) q.brand = s.brand;
+      if (s.model) q.model = s.model;
+      if (s.year) q.year = s.year;
       return q;
     });
 
-    const recommendedCars = await Car.find({ $or: queries }).populate(
-      "user",
-      "_id username email"
-    );
-    res.status(200).json(recommendedCars);
+    const matchConditions = {
+      $or: orQueries,
+      user: { $ne: new mongoose.Types.ObjectId(userId) },
+    };
+
+    if (excludeCarId) {
+      matchConditions._id = { $ne: new mongoose.Types.ObjectId(excludeCarId) };
+    }
+
+    // Main: sample random matches
+    let recommendations = await Car.aggregate([
+      { $match: matchConditions },
+      { $sample: { size: 6 } }, // <== randomness here
+    ]);
+
+    // If nothing matched, fallback to random cars
+    if (recommendations.length === 0) {
+      recommendations = await Car.aggregate([
+        { $match: { user: { $ne: new mongoose.Types.ObjectId(userId) } } },
+        { $sample: { size: 6 } },
+      ]);
+    }
+
+    // Populate user info
+    const populated = await Car.find({ _id: { $in: recommendations.map(car => car._id) } })
+      .populate("user", "_id username email");
+
+    res.status(200).json(populated);
   } catch (error) {
-    console.error("Error fetching car recommendations:", error);
+    console.error("Error fetching recommendations:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // @desc    Update a car
 // @route   PUT /api/cars/:id
@@ -232,5 +267,144 @@ export const filterByAttributes = async (req, res) => {
   } catch (error) {
     console.error("Error filtering cars:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+export const getCarSummary = async (req, res) => {
+  console.log("get car summary hit");
+  try {
+    const totalCars = await Car.countDocuments();
+
+    const carsByBrand = await Car.aggregate([
+      { $group: { _id: "$brand", count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    const avgPrice = await Car.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgPrice: { $avg: { $toDouble: "$price" } }
+        }
+      }
+    ]);
+
+    const latestCars = await Car.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("title price brand year");
+
+    res.status(200).json({
+      totalCars,
+      carsByBrand,
+      averagePrice: avgPrice[0]?.avgPrice?.toFixed(2) || 0,
+      latestCars
+    });
+  } catch (error) {
+    console.error("Error in car summary:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+// GET unapproved cars
+export const getUnapprovedCars = async (req, res) => {
+  try {
+    const cars = await Car.find({ status: "unapproved" }).populate("user", "name email");
+    res.status(200).json(cars);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch unapproved cars", error: err.message });
+  }
+};
+
+export const getLatestCars = async (req, res) => {
+  try {
+    const cars = await Car.find()
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .populate("user", "name email");
+
+    res.status(200).json(cars);
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to fetch latest cars",
+      error: err.message,
+    });
+  }
+};
+
+
+// POST approve or decline
+export const updateCarApproval = async (req, res) => {
+  const { carId, action } = req.body;
+
+  if (!["approve", "decline"].includes(action)) {
+    return res.status(400).json({ message: "Invalid action" });
+  }
+
+  try {
+    const car = await Car.findById(carId);
+    if (!car) return res.status(404).json({ message: "Car not found" });
+
+    car.status = action === "approve" ? "approved" : "declined";
+    await car.save();
+
+    res.status(200).json({ message: `Car ${action}d successfully` });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update car status", error: err.message });
+  }
+};
+
+
+
+export const getCarSummaryByMonths = async (req, res) => {
+  const months = parseInt(req.params.months);
+  if (isNaN(months) || months <= 0) {
+    return res.status(400).json({ error: "Invalid months parameter" });
+  }
+
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - months);
+
+  try {
+    const data = await Car.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: {
+          "_id.year": 1,
+          "_id.month": 1,
+        },
+      },
+    ]);
+
+    // Format data to: [{ month: 'Jan 2024', count: 10 }, ...]
+    const formatted = data.map(item => {
+      const date = new Date(item._id.year, item._id.month - 1);
+      return {
+        month: date.toLocaleString("default", { month: "short", year: "numeric" }),
+        count: item.count,
+      };
+    });
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("Error fetching summary:", err);
+    res.status(500).json({ error: "Server error" });
   }
 };
