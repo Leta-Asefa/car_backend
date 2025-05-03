@@ -32,7 +32,9 @@ export const register = async (req, res) => {
       username: user.username,
       email: user.email,
       role: user.role,
-      phoneNumber:user.phoneNumber
+      phoneNumber:user.phoneNumber,
+      searchHistory: user.searchHistory,
+      status:user.status
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -64,6 +66,9 @@ console.log(email, password);
       username: user.username,
       email: user.email,
       role: user.role,
+      phoneNumber:user.phoneNumber,
+      searchHistory: user.searchHistory,
+      status:user.status
     });
   } catch (error) {
     console.log(error);
@@ -102,6 +107,7 @@ export const getUnapprovedUsers = async (req, res) => {
 // POST: Approve or decline user
 export const handleUserApproval = async (req, res) => {
   const { userId, action } = req.body;
+  console.log("approval", userId, action);
 
   if (!userId || !["approve", "decline"].includes(action)) {
     return res.status(400).json({ message: "Invalid request." });
@@ -109,7 +115,7 @@ export const handleUserApproval = async (req, res) => {
 
   try {
     if (action === "approve") {
-      await User.findByIdAndUpdate(userId, { role: "user" }); // or "admin", if needed
+      await User.findByIdAndUpdate(userId, { status: "approved" }); // or "admin", if needed
     } else {
       await User.findByIdAndDelete(userId);
     }
