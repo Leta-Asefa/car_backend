@@ -60,7 +60,7 @@ console.log(email, password);
       secure: false,
       sameSite: "strict",
     });
-
+    
     res.json({
       _id: user._id,
       username: user.username,
@@ -107,7 +107,6 @@ export const getUnapprovedUsers = async (req, res) => {
 // POST: Approve or decline user
 export const handleUserApproval = async (req, res) => {
   const { userId, action } = req.body;
-  console.log("approval", userId, action);
 
   if (!userId || !["approve", "decline"].includes(action)) {
     return res.status(400).json({ message: "Invalid request." });

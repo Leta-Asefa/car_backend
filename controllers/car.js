@@ -6,7 +6,7 @@ import User from "../models/User.js";
 // @route   GET /api/cars
 export const getAllCars = async (req, res) => {
   try {
-    const cars = await Car.find().populate("user", "_id username email");
+    const cars = await Car.find().populate("user", "_id username email phoneNumber");
     res.status(200).json(cars);
   } catch (error) {
     console.error("Error fetching all cars:", error);
@@ -21,7 +21,7 @@ export const getCarsByUser = async (req, res) => {
     const { id: userId } = req.params;
     const cars = await Car.find({ user: userId }).populate(
       "user",
-      "_id username email"
+      "_id username email phoneNumber"
     );
     res.status(200).json(cars);
   } catch (error) {
@@ -95,7 +95,7 @@ export const recommendCars = async (req, res) => {
       ]);
 
       const populated = await Car.find({ _id: { $in: fallback.map(car => car._id) } })
-        .populate("user", "_id username email");
+        .populate("user", "_id username email phoneNumber");
 
       return res.status(200).json(populated);
     }
@@ -136,7 +136,7 @@ export const recommendCars = async (req, res) => {
 
     // Populate user info
     const populated = await Car.find({ _id: { $in: recommendations.map(car => car._id) } })
-      .populate("user", "_id username email");
+      .populate("user", "_id username email phoneNumber");
 
     res.status(200).json(populated);
   } catch (error) {
@@ -190,8 +190,8 @@ export const deleteCar = async (req, res) => {
 export const searchText = async (req, res) => {
   try {
     const query = req.params.query;
-
-    const regex = new RegExp(query, "i"); // "i" for case-insensitive
+console.log("query ",query)
+const regex = new RegExp(query, "i"); // "i" for case-insensitive
 
     const cars = await Car.find({
       $or: [
@@ -207,8 +207,9 @@ export const searchText = async (req, res) => {
         { price: regex },
         { "location.address": regex },
       ],
-    }).populate("user", "username email");
+    }).populate("user", "username email phoneNumber");
 
+    console.log("query ",cars)
     res.status(200).json(cars);
   } catch (error) {
     console.error("Error during car search:", error);
@@ -261,7 +262,7 @@ export const filterByAttributes = async (req, res) => {
     if (location && typeof location === "string")
       filters["location.address"] = { $regex: location, $options: "i" };
 
-    const cars = await Car.find(filters).populate("user", "username email");
+    const cars = await Car.find(filters).populate("user", "username email phoneNumber");
     console.log("cars ", cars);
     res.status(200).json(cars);
   } catch (error) {

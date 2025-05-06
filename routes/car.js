@@ -26,14 +26,14 @@ router.get("/recommendations/:userId", recommendCars);
 
 // Private Routes (should be protected later)
 
-router.put("/:id", updateCar);
-router.delete("/:id", deleteCar);
 router.get("/search/:query", searchText);
 router.post("/filter",filterByAttributes)
 router.get("/summary", getCarSummary);
-router.get("/lastestcars", getLatestCars);
+router.get("/latestcars", getLatestCars);
 router.get("/unapproved", getUnapprovedCars);
 router.post("/approve", updateCarApproval);
 router.get("/summary/:months", getCarSummaryByMonths);
+router.put("/:id", updateCar);
+router.delete("/:id", deleteCar);
 
 export default router;
