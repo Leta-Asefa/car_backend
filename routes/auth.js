@@ -7,7 +7,8 @@ import {
   getUnapprovedUsers,
   handleUserApproval,
   addSearchHistory,
-  getSearchHistory
+  getSearchHistory,
+  update
 } from "../controllers/auth.js";
 
 const router = express.Router();
@@ -15,6 +16,7 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/login", login);
 router.get("/logout", logout);
+router.post("/update", update);
 router.get("/all", getAllUsers);
 router.get("/unapproved", getUnapprovedUsers);
 router.post("/approve", handleUserApproval);

@@ -12,7 +12,8 @@ import {
   updateCarApproval,
   getUnapprovedCars,
   getLatestCars,
-  getCarSummaryByMonths
+  getCarSummaryByMonths,
+  getCarsById
 } from "../controllers/car.js";
 import upload from "../middlewares/upload.js";
 
@@ -22,6 +23,7 @@ const router = express.Router();
 router.get("/", getAllCars);
 router.post("/add", addCar);
 router.get("/user/:id", getCarsByUser);
+router.get("/get/:id", getCarsById);
 router.get("/recommendations/:userId", recommendCars);
 
 // Private Routes (should be protected later)

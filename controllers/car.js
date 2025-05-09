@@ -6,7 +6,7 @@ import User from "../models/User.js";
 // @route   GET /api/cars
 export const getAllCars = async (req, res) => {
   try {
-    const cars = await Car.find().populate("user", "_id username email phoneNumber");
+    const cars = await Car.find().populate("user", "_id username email phoneNumber createdAt");
     res.status(200).json(cars);
   } catch (error) {
     console.error("Error fetching all cars:", error);
@@ -21,7 +21,20 @@ export const getCarsByUser = async (req, res) => {
     const { id: userId } = req.params;
     const cars = await Car.find({ user: userId }).populate(
       "user",
-      "_id username email phoneNumber"
+      "_id username email phoneNumber createdAt"
+    );
+    res.status(200).json(cars);
+  } catch (error) {
+    console.error("Error fetching cars by user ID:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+export const getCarsById = async (req, res) => {
+  try {
+    const { id} = req.params;
+    const cars = await Car.findById(id).populate(
+      "user",
+      "_id username email phoneNumber createdAt"
     );
     res.status(200).json(cars);
   } catch (error) {
@@ -95,7 +108,7 @@ export const recommendCars = async (req, res) => {
       ]);
 
       const populated = await Car.find({ _id: { $in: fallback.map(car => car._id) } })
-        .populate("user", "_id username email phoneNumber");
+        .populate("user", "_id username email phoneNumber createdAt");
 
       return res.status(200).json(populated);
     }
@@ -136,7 +149,7 @@ export const recommendCars = async (req, res) => {
 
     // Populate user info
     const populated = await Car.find({ _id: { $in: recommendations.map(car => car._id) } })
-      .populate("user", "_id username email phoneNumber");
+      .populate("user", "_id username email phoneNumber createdAt");
 
     res.status(200).json(populated);
   } catch (error) {
@@ -207,7 +220,7 @@ const regex = new RegExp(query, "i"); // "i" for case-insensitive
         { price: regex },
         { "location.address": regex },
       ],
-    }).populate("user", "username email phoneNumber");
+    }).populate("user", "username email phoneNumber createdAt");
 
     console.log("query ",cars)
     res.status(200).json(cars);
@@ -262,7 +275,7 @@ export const filterByAttributes = async (req, res) => {
     if (location && typeof location === "string")
       filters["location.address"] = { $regex: location, $options: "i" };
 
-    const cars = await Car.find(filters).populate("user", "username email phoneNumber");
+    const cars = await Car.find(filters).populate("user", "username email phoneNumber createdAt");
     console.log("cars ", cars);
     res.status(200).json(cars);
   } catch (error) {
@@ -314,7 +327,7 @@ export const getCarSummary = async (req, res) => {
 // GET unapproved cars
 export const getUnapprovedCars = async (req, res) => {
   try {
-    const cars = await Car.find({ status: "unapproved" }).populate("user", "name email");
+    const cars = await Car.find({ status: "unapproved" }).populate("user", "name email phoneNumber createdAt");
     res.status(200).json(cars);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch unapproved cars", error: err.message });
@@ -326,7 +339,7 @@ export const getLatestCars = async (req, res) => {
     const cars = await Car.find()
       .sort({ createdAt: -1 })
       .limit(100)
-      .populate("user", "name email");
+      .populate("user", "name email phoneNumber createdAt");
 
     res.status(200).json(cars);
   } catch (err) {

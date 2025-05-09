@@ -83,6 +83,41 @@ export const logout = (req, res) => {
 };
 
 
+
+export const update = async (req, res) => {
+  const { userId,username, phoneNumber, oldPassword, newPassword } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Password update check
+    if (oldPassword && newPassword) {
+      const isMatch = await user.matchPassword(oldPassword);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Old password is incorrect" });
+      }
+
+      user.password = newPassword; // no need to hash manually
+    }
+
+    // Update fields
+    if (username) user.username = username;
+    if (phoneNumber) user.phoneNumber = phoneNumber;
+
+    await user.save(); // triggers the pre('save') for password
+
+    res.status(200).json({ message: "User updated successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+
+
 // GET: All users
 export const getAllUsers = async (req, res) => {
   try {

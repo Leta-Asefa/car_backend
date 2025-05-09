@@ -4,7 +4,7 @@ import { getReceiverSocketId, io } from "../sockets/socket.js";
 
 export const sendMessage = async (req, res) => {
   try {
-    const { message, senderId } = req.body;
+    const { message, senderId, isImage } = req.body;
     const { id: receiverId } = req.params;
 
     let conversation = await Conversation.findOne({
@@ -21,6 +21,7 @@ export const sendMessage = async (req, res) => {
       senderId,
       receiverId,
       message,
+      isImage:isImage || false
     });
 
     if (newMessage) {
@@ -33,13 +34,18 @@ export const sendMessage = async (req, res) => {
     // this will run in parallel
     await Promise.all([conversation.save(), newMessage.save()]);
 
-    // SOCKET IO FUNCTIONALITY WILL GO HERE
+    const populatedConversation = await conversation.populate([
+      { path: "messages" },
+      { path: "participants", select: "username phoneNumber" },
+    ]);
+
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
+      io.to(receiverSocketId).emit("newMessage", { ...newMessage._doc, conversation: populatedConversation });
+      console.log("emitted newMessage with populated messages", {...newMessage._doc,conversation:populatedConversation});
     }
 
-    res.status(201).json(newMessage);
+    res.status(201).json({ ...newMessage.toObject(), conversation: populatedConversation });
   } catch (error) {
     console.log("Error in sendMessage controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
@@ -47,13 +53,14 @@ export const sendMessage = async (req, res) => {
 };
 
 export const getMessages = async (req, res) => {
+  console.log(req.params, req.user);
   try {
     const { id: userToChatId } = req.params;
     const senderId = req.user._id || "680ff2ae1c09d2da2c85aaaf";
 
     const conversation = await Conversation.findOne({
       participants: { $all: [senderId, userToChatId] },
-    }).populate("messages"); // NOT REFERENCE BUT ACTUAL MESSAGES
+    }).populate(["messages", "participants"]); // Populate both messages and participants
 
     if (!conversation) return res.status(200).json([]);
 
@@ -83,6 +90,7 @@ export const getConversationsByUserId = async (req, res) => {
 };
 
 export const createConversations = async (req, res) => {
+  console.log("create conversations hit" );
   try {
     const { userId, receiverId } = req.params;
 
@@ -98,7 +106,7 @@ export const createConversations = async (req, res) => {
       });
     }
 
-	conversation.save()
+    conversation.save();
 
     res.status(201).json({ message: "Conversation created successfully" });
   } catch (error) {

@@ -22,7 +22,7 @@ const CarSchema = new Schema(
     price: { type: String, required: true },
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     images: [{ type: String }], // <<< HERE you store multiple image URLs
-    status: { type: String, enum: ['approved', 'declined','unapproved'], default: 'unapproved' },
+    status: { type: String, enum: ['approved', 'declined','unapproved','sold'], default: 'unapproved' },
 
   },
   {
