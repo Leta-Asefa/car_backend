@@ -13,7 +13,8 @@ import {
   getUnapprovedCars,
   getLatestCars,
   getCarSummaryByMonths,
-  getCarsById
+  getCarsById,
+  getUsersOtherPost
 } from "../controllers/car.js";
 import upload from "../middlewares/upload.js";
 
@@ -24,6 +25,7 @@ router.get("/", getAllCars);
 router.post("/add", addCar);
 router.get("/user/:id", getCarsByUser);
 router.get("/get/:id", getCarsById);
+router.get("/get_other_posts/:userId", getUsersOtherPost);
 router.get("/recommendations/:userId", recommendCars);
 
 // Private Routes (should be protected later)

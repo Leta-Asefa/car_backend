@@ -63,6 +63,9 @@ export const addCar = async (req, res) => {
       price,
       user,
       images,
+      vehicleDetails,
+      features,
+      safety,
     } = req.body;
 
     // Create a new car object with the extracted fields
@@ -81,6 +84,9 @@ export const addCar = async (req, res) => {
       price,
       user, // User ID
       images, // Array of image URLs
+      vehicleDetails,
+      features,
+      safety,
     };
 
     // Save the car data to the database
@@ -162,6 +168,7 @@ export const recommendCars = async (req, res) => {
 // @desc    Update a car
 // @route   PUT /api/cars/:id
 export const updateCar = async (req, res) => {
+  console.log("update car body ",req.body)
   try {
     const { id } = req.params;
     const car = await Car.findById(id);
@@ -209,18 +216,24 @@ const regex = new RegExp(query, "i"); // "i" for case-insensitive
     const cars = await Car.find({
       $or: [
         { title: regex },
-        { brand: regex },
-        { model: regex },
         { description: regex },
-        { fuel: regex },
-        { bodyType: regex },
-        { color: regex },
-        { transmission: regex },
+        { location: regex },
+        { brand: regex },
         { year: regex },
+        { bodyType: regex },
+        { fuel: regex },
+        { mileage: regex },
+        { model: regex },
+        { transmission: regex },
+        { color: regex },
+        { vehicleDetails: regex },
         { price: regex },
-        { "location.address": regex },
+        { features: { $in: [regex] } },
+        { safety: { $in: [regex] } },
       ],
-    }).populate("user", "username email phoneNumber createdAt");
+    })
+      .populate("user", "_id username email phoneNumber createdAt")
+      .select("_id title description location brand year bodyType fuel mileage model transmission color vehicleDetails price user images features safety status createdAt updatedAt");
 
     console.log("query ",cars)
     res.status(200).json(cars);
@@ -240,13 +253,12 @@ export const filterByAttributes = async (req, res) => {
       model,
       year,
       bodyType,
-      fuel,
+      fuelType,
       mileage,
       transmission,
       color,
       location,
     } = req.body; // GET DATA FROM BODY
-
     // Build dynamic filters
     if (title && typeof title === "string")
       filters.title = { $regex: title, $options: "i" };
@@ -257,8 +269,8 @@ export const filterByAttributes = async (req, res) => {
     if (year) filters.year = year;
     if (bodyType && typeof bodyType === "string")
       filters.bodyType = { $regex: bodyType, $options: "i" };
-    if (fuel && typeof fuel === "string")
-      filters.fuel = { $regex: fuel, $options: "i" };
+    if (fuelType && typeof fuelType === "string")
+      filters.fuel = { $regex: fuelType, $options: "i" };
     if (mileage) filters.mileage = mileage;
     if (transmission && typeof transmission === "string")
       filters.transmission = { $regex: transmission, $options: "i" };
@@ -275,8 +287,20 @@ export const filterByAttributes = async (req, res) => {
     if (location && typeof location === "string")
       filters["location.address"] = { $regex: location, $options: "i" };
 
+    if (req.body.vehicleDetails && typeof req.body.vehicleDetails === "string") {
+      filters.vehicleDetails = { $regex: req.body.vehicleDetails, $options: "i" };
+    }
+
+    if (req.body.features && Array.isArray(req.body.features) && req.body.features.length > 0) {
+      filters.features = { $elemMatch: { $in: req.body.features } };
+    }
+
+    if (req.body.safety && Array.isArray(req.body.safety) && req.body.safety.length > 0) {
+      filters.safety = { $elemMatch: { $in: req.body.safety } };
+    }
+
     const cars = await Car.find(filters).populate("user", "username email phoneNumber createdAt");
-    console.log("cars ", cars);
+   // console.log("cars ", cars);
     res.status(200).json(cars);
   } catch (error) {
     console.error("Error filtering cars:", error);
@@ -420,5 +444,31 @@ export const getCarSummaryByMonths = async (req, res) => {
   } catch (err) {
     console.error("Error fetching summary:", err);
     res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const getUsersOtherPost = async (req, res) => {
+  try {
+    const { userId } = req.params;
+console.log("Other posts ",userId)
+    // Validate userId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    // Fetch cars owned by the user
+    const cars = await Car.find({ user: userId })
+      .populate("user", "_id username email phoneNumber createdAt")
+      .sort({ createdAt: -1 }); // Sort by most recent
+
+    // Check if cars exist
+    if (!cars || cars.length === 0) {
+      return res.status(404).json({ message: "No cars found for this user" });
+    }
+
+    res.status(200).json(cars);
+  } catch (error) {
+    console.error("Error fetching user's other posts:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };

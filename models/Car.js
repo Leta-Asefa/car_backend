@@ -19,9 +19,12 @@ const CarSchema = new Schema(
     model: { type: String, required: true },
     transmission: { type: String, required: true },
     color: { type: String, required: true },
+    vehicleDetails: { type: String, required: true },
     price: { type: String, required: true },
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     images: [{ type: String }], // <<< HERE you store multiple image URLs
+    features: [{ type: String }], // <<< HERE you store multiple image URLs
+    safety: [{ type: String }], // <<< HERE you store multiple image URLs
     status: { type: String, enum: ['approved', 'declined','unapproved','sold'], default: 'unapproved' },
 
   },
