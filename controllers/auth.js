@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 // Utility to create JWT token
 const generateToken = (userId) => {
@@ -34,7 +35,9 @@ export const register = async (req, res) => {
       role: user.role,
       phoneNumber:user.phoneNumber,
       searchHistory: user.searchHistory,
-      status:user.status
+      status:user.status,
+      wishList:user.wishList,
+      socialMedia:user.socialMedia
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -68,7 +71,9 @@ console.log(email, password);
       role: user.role,
       phoneNumber:user.phoneNumber,
       searchHistory: user.searchHistory,
-      status:user.status
+      status:user.status,
+      wishList:user.wishList,
+      socialMedia:user.socialMedia
     });
   } catch (error) {
     console.log(error);
@@ -104,6 +109,7 @@ export const update = async (req, res) => {
     // Update fields
     if (username) user.username = username;
     if (phoneNumber) user.phoneNumber = phoneNumber;
+    if (req.body.socialMedia) user.socialMedia = req.body.socialMedia;
 
     await user.save(); // triggers the pre('save') for password
 
@@ -138,6 +144,27 @@ export const getUnapprovedUsers = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch unapproved users." });
   }
 };
+// GET: Unapproved users (e.g. role === "unapproved")
+export const getApprovedUsers = async (req, res) => {
+  try {
+    const users = await User.find({ status: "approved" }).sort({ createdAt: -1 });
+    console.log(users);
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch unapproved users." });
+  }
+};
+// GET: Unapproved users (e.g. role === "unapproved")
+export const getSuspendedUsers = async (req, res) => {
+  console.log("suspension called ")
+  try {
+    const users = await User.find({ status: "suspended" }).sort({ createdAt: -1 });
+    console.log(users);
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch unapproved users." });
+  }
+};
 
 // POST: Approve or decline user
 export const handleUserApproval = async (req, res) => {
@@ -146,12 +173,32 @@ export const handleUserApproval = async (req, res) => {
   if (!userId || !["approve", "decline"].includes(action)) {
     return res.status(400).json({ message: "Invalid request." });
   }
-
+  
   try {
     if (action === "approve") {
       await User.findByIdAndUpdate(userId, { status: "approved" }); // or "admin", if needed
     } else {
       await User.findByIdAndDelete(userId);
+    }
+
+    res.json({ message: `User ${action}d successfully.` });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update user." });
+  }
+};
+// POST: suspension or unsuspension user
+export const handleUserSuspension = async (req, res) => {
+  const { userId, action } = req.body;
+  
+  if (!userId || !["suspend", "unsuspend"].includes(action)) {
+    return res.status(400).json({ message: "Invalid request." });
+  }
+
+  try {
+    if (action === "suspend") {
+      await User.findByIdAndUpdate(userId, { status: "suspended" }); // or "admin", if needed
+    } else {
+      await User.findByIdAndUpdate(userId, { status: "approved" }); // or "admin", if needed
     }
 
     res.json({ message: `User ${action}d successfully.` });
@@ -202,6 +249,88 @@ export const getSearchHistory = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch search history." });
+  }
+};
+
+// Controller: Get user summary statistics
+export const getUserSummary = async (req, res) => {
+  try {
+    const days = parseInt(req.params.days);
+    const sinceDate = !isNaN(days)
+      ? new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      : null;
+
+    const [
+      totalUsers,
+      suspendedUsers,
+      approvedUsers,
+      declinedUsers,
+      sellers,
+      buyers,
+      joinedRecently
+    ] = await Promise.all([
+      mongoose.model("User").countDocuments(),
+      mongoose.model("User").countDocuments({ status: "suspended" }),
+      mongoose.model("User").countDocuments({ status: "approved" }),
+      mongoose.model("User").countDocuments({ status: "declined" }),
+      mongoose.model("User").countDocuments({ role: "seller" }),
+      mongoose.model("User").countDocuments({ role: "buyer" }),
+      mongoose.model("User").countDocuments({ status: "unapproved" }),
+    ]);
+
+    res.json({
+      totalUsers,
+      suspendedUsers,
+      approvedUsers,
+      declinedUsers,
+      joinedRecently,
+      sellers,
+      buyers
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch user summary." });
+  }
+};
+
+// Add to wish list
+export const addToWishList = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { carId } = req.body;
+    if (!carId) return res.status(400).json({ message: "carId is required" });
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.wishList) user.wishList = [];
+    const index = user.wishList.findIndex(id => id.toString() === carId);
+    if (index > -1) {
+      user.wishList.splice(index, 1);
+      await user.save();
+      console.log("removed from wishList ",carId)
+      return res.status(200).json({ message: "Removed from wish list" });
+    }
+    user.wishList.push(carId);
+    console.log("added to wishList ",carId)
+    await user.save();
+    res.status(200).json({ message: "Added to wish list" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to toggle wish list", error: err.message });
+  }
+};
+
+
+// Get all wish list
+export const getWishList = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).populate({
+      path: "wishList",
+      populate: { path: "user", select: "_id username email phoneNumber createdAt" }
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.wishList || []);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to get wish list", error: err.message });
   }
 };
 

@@ -6,7 +6,7 @@ import User from "../models/User.js";
 // @route   GET /api/cars
 export const getAllCars = async (req, res) => {
   try {
-    const cars = await Car.find().populate("user", "_id username email phoneNumber createdAt");
+    const cars = await Car.find().populate("user", "_id username email phoneNumber createdAt socialMedia");
     res.status(200).json(cars);
   } catch (error) {
     console.error("Error fetching all cars:", error);
@@ -21,7 +21,7 @@ export const getCarsByUser = async (req, res) => {
     const { id: userId } = req.params;
     const cars = await Car.find({ user: userId }).populate(
       "user",
-      "_id username email phoneNumber createdAt"
+      "_id username email phoneNumber createdAt socialMedia"
     );
     res.status(200).json(cars);
   } catch (error) {
@@ -34,7 +34,7 @@ export const getCarsById = async (req, res) => {
     const { id} = req.params;
     const cars = await Car.findById(id).populate(
       "user",
-      "_id username email phoneNumber createdAt"
+      "_id username email phoneNumber createdAt socialMedia"
     );
     res.status(200).json(cars);
   } catch (error) {
@@ -114,7 +114,7 @@ export const recommendCars = async (req, res) => {
       ]);
 
       const populated = await Car.find({ _id: { $in: fallback.map(car => car._id) } })
-        .populate("user", "_id username email phoneNumber createdAt");
+        .populate("user", "_id username email phoneNumber createdAt socialMedia");
 
       return res.status(200).json(populated);
     }
@@ -155,7 +155,7 @@ export const recommendCars = async (req, res) => {
 
     // Populate user info
     const populated = await Car.find({ _id: { $in: recommendations.map(car => car._id) } })
-      .populate("user", "_id username email phoneNumber createdAt");
+      .populate("user", "_id username email phoneNumber createdAt socialMedia");
 
     res.status(200).json(populated);
   } catch (error) {
@@ -232,7 +232,7 @@ const regex = new RegExp(query, "i"); // "i" for case-insensitive
         { safety: { $in: [regex] } },
       ],
     })
-      .populate("user", "_id username email phoneNumber createdAt")
+      .populate("user", "_id username email phoneNumber createdAt socialMedia")
       .select("_id title description location brand year bodyType fuel mileage model transmission color vehicleDetails price user images features safety status createdAt updatedAt");
 
     console.log("query ",cars)
@@ -299,7 +299,7 @@ export const filterByAttributes = async (req, res) => {
       filters.safety = { $elemMatch: { $in: req.body.safety } };
     }
 
-    const cars = await Car.find(filters).populate("user", "username email phoneNumber createdAt");
+    const cars = await Car.find(filters).populate("user", "username email phoneNumber createdAt socialMedia");
    // console.log("cars ", cars);
     res.status(200).json(cars);
   } catch (error) {
@@ -351,7 +351,16 @@ export const getCarSummary = async (req, res) => {
 // GET unapproved cars
 export const getUnapprovedCars = async (req, res) => {
   try {
-    const cars = await Car.find({ status: "unapproved" }).populate("user", "name email phoneNumber createdAt");
+    const cars = await Car.find({ status: "unapproved" }).populate("user", "name email phoneNumber createdAt socialMedia");
+    res.status(200).json(cars);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch unapproved cars", error: err.message });
+  }
+};
+// GET unapproved cars
+export const getApprovedCars = async (req, res) => {
+  try {
+    const cars = await Car.find({ status: "approved" }).populate("user", "name email phoneNumber createdAt socialMedia");
     res.status(200).json(cars);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch unapproved cars", error: err.message });
@@ -363,7 +372,7 @@ export const getLatestCars = async (req, res) => {
     const cars = await Car.find()
       .sort({ createdAt: -1 })
       .limit(100)
-      .populate("user", "name email phoneNumber createdAt");
+      .populate("user", "name email phoneNumber createdAt socialMedia");
 
     res.status(200).json(cars);
   } catch (err) {
@@ -458,7 +467,7 @@ console.log("Other posts ",userId)
 
     // Fetch cars owned by the user
     const cars = await Car.find({ user: userId })
-      .populate("user", "_id username email phoneNumber createdAt")
+      .populate("user", "_id username email phoneNumber createdAt socialMedia")
       .sort({ createdAt: -1 }); // Sort by most recent
 
     // Check if cars exist

@@ -14,7 +14,8 @@ import {
   getLatestCars,
   getCarSummaryByMonths,
   getCarsById,
-  getUsersOtherPost
+  getUsersOtherPost,
+  getApprovedCars
 } from "../controllers/car.js";
 import upload from "../middlewares/upload.js";
 
@@ -35,6 +36,7 @@ router.post("/filter",filterByAttributes)
 router.get("/summary", getCarSummary);
 router.get("/latestcars", getLatestCars);
 router.get("/unapproved", getUnapprovedCars);
+router.get("/approved", getApprovedCars);
 router.post("/approve", updateCarApproval);
 router.get("/summary/:months", getCarSummaryByMonths);
 router.put("/:id", updateCar);
