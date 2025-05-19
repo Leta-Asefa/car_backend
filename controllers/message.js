@@ -114,3 +114,18 @@ export const createConversations = async (req, res) => {
     res.status(500).json({ error: "Internal server error : " + error });
   }
 };
+
+export const getConversationId = async (req, res) => {
+  try {
+    const { userId, sellerId } = req.params;
+    const conversation = await Conversation.findOne({
+      participants: { $all: [userId, sellerId] },
+    }).select('_id');
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+    res.status(200).json({ conversationId: conversation._id });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
