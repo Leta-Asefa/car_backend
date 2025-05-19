@@ -214,6 +214,7 @@ console.log("query ",query)
 const regex = new RegExp(query, "i"); // "i" for case-insensitive
 
     const cars = await Car.find({
+      status: "approved",
       $or: [
         { title: regex },
         { description: regex },
@@ -230,6 +231,7 @@ const regex = new RegExp(query, "i"); // "i" for case-insensitive
         { price: regex },
         { features: { $in: [regex] } },
         { safety: { $in: [regex] } },
+
       ],
     })
       .populate("user", "_id username email phoneNumber createdAt socialMedia")
@@ -247,6 +249,8 @@ export const filterByAttributes = async (req, res) => {
   console.log("Filter ", req.body);
   try {
     const filters = {};
+    filters.status = "approved";
+
     const {
       title,
       brand,
@@ -329,7 +333,7 @@ export const getCarSummary = async (req, res) => {
       }
     ]);
 
-    const latestCars = await Car.find()
+    const latestCars = await Car.find({status:'approved'})
       .sort({ createdAt: -1 })
       .limit(5)
       .select("title price brand year");
